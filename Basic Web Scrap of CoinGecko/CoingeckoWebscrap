@@ -1,0 +1,51 @@
+import requests
+from lxml import html
+from urllib.parse import urljoin
+import csv
+
+
+coin_list = []
+
+def get(list_element):
+    try:
+        return list_element.pop(0).strip()
+    except:
+        return ""
+
+def scrape(url):
+    global x
+    response = requests.get(url=url)
+    tree = html.fromstring(response.content)
+
+    coins = tree.xpath("//table/tbody/tr")
+
+    for index, coin in enumerate(coins):
+        coin = {
+            "Rank": get(coin.xpath("./td[2]/text()")),
+            "Name": get(coin.xpath("./td[3]/div/div[2]/a/span/text()")),
+            "Price": get(coin.xpath("./td[4]/div/div[2]/span/text()")),
+            "1-hour Price Change": get(coin.xpath("./td[5]/span/text()")),
+            "24-hour Price Change": get(coin.xpath("./td[6]/span/text()")),
+            "7-days Price Change": get(coin.xpath("./td[7]/span/text()")),
+            "Volume": get(coin.xpath("./td[8]/span/text()")),
+            "Marketcap": get(coin.xpath("./td[9]/span/text()"))
+        }
+        coin_list.append(coin)
+
+    next_page = get(tree.xpath("//ul[@class='pagination']/li[@class='page-item next']/a/@href"))
+    if len(next_page) > 0:
+        next_page_url = urljoin(base=url, url=next_page)
+        scrape(next_page_url)
+
+
+
+
+def write_to_csv(filename, data):
+    headers = ['Rank', 'Name', 'Price', '1-hour Price Change', '24-hour Price Change', '7-days Price Change', 'Volume', 'Marketcap']
+    with open(filename, "w", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writeheader()
+        writer.writerows(coin_list)
+
+scrape(url="https://www.coingecko.com/")
+write_to_csv("book.csv", coin_list )
